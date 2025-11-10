@@ -70,11 +70,21 @@ void facebook_rccl::ProxyTrace::checkOpCompleted(
       activeCollFinishedOps[key.commHash][key.opCount].push_back(
           std::move(traceOp));
       activeOps[key.commHash][key.opCount].erase(key.proxyOpId);
+      INFO(
+          NCCL_PROXY,
+          "[proxyTrace] ProxyTraceOp done, key:%s",
+          key.str().c_str());
       if (activeOps[key.commHash][key.opCount].empty()) {
         activeOps[key.commHash].erase(key.opCount);
         activeOpIdTracker[key.commHash].erase(key.opCount);
         activeCollFinishedOps[key.commHash][key.opCount]
             .clear(); // coll is no longer active
+        INFO(
+            NCCL_PROXY,
+            "[proxyTrace] Collective done, commHash:%lu, opCount:%lu, mapSizeMB:%.2f",
+            key.commHash,
+            key.opCount,
+            getMapSizeMB());
       }
     }
   } else {
@@ -104,6 +114,17 @@ void facebook_rccl::ProxyTrace::addNewProxyTraceOpImpl(
     traceOp.startTs = std::chrono::high_resolution_clock::now();
     traceOp.status = ProxyOpStepStatus::INIT;
     activeOpIdTracker[key.commHash][key.opCount]++;
+    INFO(
+        NCCL_PROXY,
+        "[proxyTrace] Adding new ProxyTraceOp. key:%s, extraInfo:%s, opType:%s, chan:%d, nSteps:%d, nbytes:%d, peer:%d, mapSizeMB:%.2f",
+        traceOp.traceKey.str().c_str(),
+        traceOp.extraInfo.str().c_str(),
+        (traceOp.opType == ProxyOpType::SEND ? "S" : "R"),
+        traceOp.channelId,
+        traceOp.nSteps,
+        traceOp.nbytes,
+        traceOp.peerRank,
+        getMapSizeMB());
     activeOps[key.commHash][key.opCount].emplace(
         key.proxyOpId, std::move(traceOp));
   } else if (nSteps == 0) {
